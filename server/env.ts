@@ -21,6 +21,15 @@ const schema = z.object({
         .filter(Boolean),
     ),
   PORT: z.coerce.number().int().positive().default(4747),
+  // Pre-authorized standing orders: armed once by voice, then filled by the floor within the caps above.
+  STANDING_ORDERS: z.enum(["true", "false"]).default("true").transform(v => v === "true"),
+  STANDING_MAX_FILLS: z.coerce.number().int().min(1).max(5).default(3),
+  // Extra assets recognized for tips/sends only (never shown as a tradeable market card).
+  // Format matches TM_TOKENS: "SYMBOL" or "SYMBOL@chain" (chain defaults to solana), comma-separated.
+  EXTRA_CASH_ASSETS: z.string().default("").transform(list => list.split(",").map(s => s.trim().toUpperCase()).filter(Boolean)),
+  // Crowd Calls: free bull/bear prediction rounds on air. No funds move.
+  CROWD_CALLS: z.enum(["true", "false"]).default("true").transform(v => v === "true"),
+  CROWD_ROUND_SECONDS: z.coerce.number().int().min(30).max(3600).default(120),
   DATA_FILE: z.string().default("data/customers.json"),
 });
 

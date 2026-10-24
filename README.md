@@ -118,9 +118,18 @@ minimums/quote expiry and fees still need a live rehearsal with the Gateway team
 
 ## Demo
 
-See [demo script](docs/DEMO.md). Browser audio requires pressing Play. Microphone
-access requires localhost or HTTPS. The show shares a segment, not sample-exact
-continuous streaming. The price-card sparkline is explicitly illustrative.
+Full click-by-click checklist, including exactly what to record in mock vs. live
+mode and what **not** to attempt live yet: [docs/DEMO.md](docs/DEMO.md).
+
+Quick version: record mock mode first (full feature set — voice trading, cap
+refusal, tips, standing orders, Crowd Calls, The Wire). In live mode, only the
+real voice-confirmed **tip** is currently verified end-to-end on the real
+Gateway; a live **buy/sell** will fail on camera until the station wallet holds
+USDC instead of PYUSD — don't record that part yet.
+
+Browser audio requires pressing Play. Microphone access requires localhost or
+HTTPS. The show shares a segment, not sample-exact continuous streaming. The
+price-card sparkline is explicitly illustrative.
 
 Retained and policy checks can be run with `npm test`; `npm run typecheck` and
 `npm run build` validate the app. Per the request, no further test cases are being

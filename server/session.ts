@@ -23,6 +23,12 @@ export function clearSession(c: Context): void {
   deleteCookie(c, COOKIE, { path: "/" });
 }
 
+// For public reads that personalize when a listener is signed in.
+export async function optionalCustomer(c: Context): Promise<Customer | undefined> {
+  const id = await getSignedCookie(c, SESSION_SECRET, COOKIE);
+  return id ? findById(id) : undefined;
+}
+
 export const requireCustomer = createMiddleware<AppEnv>(async (c, next) => {
   const id = await getSignedCookie(c, SESSION_SECRET, COOKIE);
   const customer = id ? findById(id) : undefined;

@@ -28,6 +28,14 @@ export async function loadAssets(fetchAssets = listAssets): Promise<void> {
   const tradeable = env.TM_TOKENS.map(parseToken).map(({ symbol, chain }) => find(symbol, chain));
   const chains = new Set(tradeable.map((a) => a.chain ?? "solana"));
   const cash = new Map([...chains].map((chain) => [chain, find(CASH_SYMBOL, chain)]));
+  // Tip/send-only assets (e.g. a stablecoin the station wallet actually holds). Looked up loosely:
+  // missing in this Gateway catalog (as in MOCK_MODE) just means it is skipped, never a crash.
+  for (const entry of env.EXTRA_CASH_ASSETS) {
+    const { symbol, chain } = parseToken(entry);
+    const item = data.find((a) => a.symbol.toUpperCase() === symbol && a.chain === chain);
+    if (item) cash.set(`${chain}:${symbol}`, item);
+    else console.warn(`EXTRA_CASH_ASSETS: ${symbol}@${chain} not found in the asset catalog, skipping`);
+  }
   catalog = { tradeable, market: data.filter((asset) => asset.tradeable && !asset.stable), cash };
 }
 

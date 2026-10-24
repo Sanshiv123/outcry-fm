@@ -1,0 +1,22 @@
+OUTCRY.FM — Demo narration (~100 seconds)
+Read this aloud while recording the screen, or play voiceover.mp3 as the audio track.
+
+[0:00] (Station already playing in the background)
+"Trading used to be the loudest room in the world. Then screens made it silent — just you, alone, staring at a chart. OUTCRY brings the pit back, as a live AI radio station you can actually trade from."
+
+[0:12] (Show signup / wallet)
+"This isn't a simulation. This is a real wallet, on True Markets' live Gateway. I sign up, and I get a real Solana address — funded with real dollars from the hackathon's trading budget."
+
+[0:25] (Call the floor / voice trade)
+"Now I call the floor." (tap "Call the floor" / speak) "Buy one dollar of Solana." "The host doesn't just take my word for it — it pulls a live quote straight from the Gateway, reads the exact price and fee back to me, and waits. I say 'confirm' — and only then does it submit, check the real status, and put it on the board for everyone listening."
+
+[0:50] (Tip the hosts)
+"I can also tip the hosts, live, by voice — a real transfer, signed and settled on-chain in seconds. Watch the board update the second it's verified."
+
+[1:02] (The Wire)
+"Every single call to the Gateway — every quote, every order, every transfer — shows up here, on The Wire. Nothing happens behind the curtain."
+
+[1:12] (Close)
+"Trading used to have a voice. We gave it back. This is OUTCRY-dot-F-M."
+
+[1:18] END

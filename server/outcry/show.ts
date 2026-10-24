@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import type { AppDeps } from '../app.ts';
 import { env } from '../env.ts';
 import { ledger } from './policy.ts';
+import { rounds } from './crowd.ts';
 export type Segment={id:string;started_at:number;duration:number;source:string;voice:string;lines:{speaker:'A'|'B';line:string;audio?:string}[];assets:string[];simulated:boolean;bell?:string};
 export let segment:Segment={id:'opening',started_at:Date.now(),duration:120,source:'scripted fallback',voice:'browser speech fallback',simulated:env.MOCK_MODE,assets:[],lines:[{speaker:'A',line:'Welcome to Outcry. Trading used to have a voice. We gave it back.'},{speaker:'B',line:'Hosts are AI. This is not financial advice. Every order needs your confirmation.'}]};
 if(env.MOCK_MODE&&existsSync('data/audio/1-0.mp3')&&existsSync('data/audio/1-1.mp3')){
@@ -26,7 +27,7 @@ export async function generateShow(deps:AppDeps){
   const snapshots=deps.assets.tradeable().map(a=>({id:a.id,symbol:a.symbol,...deps.prices.get(a.symbol)})).filter(a=>a.price&&a.as_of&&Date.now()-Date.parse(a.as_of)<600000);
   const recent=ledger.value.filter(t=>t.status==='FILLED'&&Date.now()-t.created<180000).slice(-5).map(t=>({name:t.name,action:t.kind,symbol:t.symbol,amount:t.amount_usd}));
   const prefix=env.MOCK_MODE?'In our simulated market, ':'On the floor, ';
-  let lines:Segment['lines']=[{speaker:'A',line:`You are tuned to Outcry. ${env.MOCK_MODE?'This is a simulated demo.':'Hosts are AI. Not financial advice.'}`},...snapshots.map((a,i)=>({speaker:(i%2?'B':'A') as 'A'|'B',line:`${prefix}${a.symbol} is priced at ${Number(a.price).toFixed(2)} dollars. That is an observation, not a recommendation.`})),...recent.map(t=>({speaker:'B' as const,line:`${t.name} just ${t.action==='tip'?'tipped the station':t.action==='buy'?'bought':'sold'} ${t.amount.toFixed(2)} dollars of ${t.symbol}${env.MOCK_MODE?' in simulation':''}.`})),{speaker:'B',line:'The crowd decides. Code enforces. Order limits are checked by the floor, and every ticket needs your confirmation.'}];
+  let lines:Segment['lines']=[{speaker:'A',line:`You are tuned to Outcry. ${env.MOCK_MODE?'This is a simulated demo.':'Hosts are AI. Not financial advice.'}`},...snapshots.map((a,i)=>({speaker:(i%2?'B':'A') as 'A'|'B',line:`${prefix}${a.symbol} is priced at ${Number(a.price).toFixed(2)} dollars. That is an observation, not a recommendation.`})),...recent.map(t=>({speaker:'B' as const,line:`${t.name} just ${t.action==='tip'?'tipped the station':t.action==='buy'?'bought':'sold'} ${t.amount.toFixed(2)} dollars of ${t.symbol}${env.MOCK_MODE?' in simulation':''}.`})),...crowdLines(),{speaker:'B',line:'The crowd decides. Code enforces. Order limits are checked by the floor, and every ticket needs your confirmation.'}];
   let source=process.env.ENABLE_GROK==='false'?'scripted market bulletin':'scripted fallback';
   if(process.env.ENABLE_GROK!=='false'&&process.env.XAI_API_KEY){
     try{const r=await provider('https://api.x.ai/v1/chat/completions',{Authorization:`Bearer ${process.env.XAI_API_KEY}`},{model:process.env.XAI_MODEL||'grok-4',messages:[{role:'system',content:HOST_PROMPT},{role:'user',content:JSON.stringify({simulated:env.MOCK_MODE,prices:snapshots,activity:recent})}],response_format:{type:'json_object'},temperature:.4});const data=await r.json() as {choices:{message:{content:string}}[]};const parsed=JSON.parse(data.choices[0]!.message.content) as {lines:Segment['lines']};
@@ -43,6 +44,9 @@ export async function generateShow(deps:AppDeps){
   }
   segment={...(existsSync('data/audio/0-0.mp3')&&snapshots.some(a=>Math.abs(Number(a.change_24h))>.02)?{bell:'/api/audio/0-0.mp3'}:{}),id,started_at:Date.now(),duration:120,source,voice,lines,assets:snapshots.map(a=>a.id),simulated:env.MOCK_MODE};
 }
+// Scripted bulletin only: these counts are not passed to Grok, whose numbers must be grounded in prices.
+function crowdLines():Segment['lines']{const r=rounds.value.find(x=>x.status==='OPEN');if(!r)return [];const bull=r.votes.filter(v=>v.side==='bull').length,bear=r.votes.length-bull;
+  return [{speaker:'A',line:r.votes.length?`Crowd call on ${r.symbol}: ${bull} ${bull===1?'bull':'bulls'}, ${bear} ${bear===1?'bear':'bears'} so far. It is a game, not a forecast.`:`The crowd call on ${r.symbol} is open and nobody has called it yet. Bulls or bears, it is your floor.`}];}
 export function startShow(deps:AppDeps){
   if(process.env.ENABLE_SOUND_EFFECTS==='true'&&process.env.ELEVENLABS_API_KEY&&!existsSync('data/audio/0-0.mp3'))void provider('https://api.elevenlabs.io/v1/sound-generation',{'xi-api-key':process.env.ELEVENLABS_API_KEY},{text:'A single short vintage trading floor bell. Clean metallic ding, no speech.',duration_seconds:1.5}).then(r=>r.arrayBuffer()).then(b=>{mkdirSync('data/audio',{recursive:true});writeFileSync('data/audio/0-0.mp3',new Uint8Array(b));}).catch(()=>{});
   let busy=false;const tick=async()=>{if(busy)return;busy=true;try{await generateShow(deps);}catch{ /* last good segment stays on air */ }finally{busy=false;}};setTimeout(()=>void tick(),1000);setInterval(()=>void tick(),120000).unref();}

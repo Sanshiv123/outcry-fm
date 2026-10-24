@@ -18,6 +18,17 @@ export function expire() { for(const t of ledger.value) if(['DRAFTED','AWAITING_
 export function checkCaps(amount: number, customer: string, tickets=ledger.value) {
   if(!Number.isFinite(amount)||amount<=0) deny('Enter a positive amount.');
   if(amount > env.MAX_ORDER_USD + 1e-8) deny(`The floor will not allow orders over ${env.MAX_ORDER_USD} dollars.`);
+  checkBudget(amount,customer,tickets);
+}
+// Today's reserved spend for one caller and the station's lifetime spend, as the caps count them.
+export function usage(customer: string, tickets=ledger.value) {
+  const day=new Date().toISOString().slice(0,10);
+  const today=tickets.filter(t=>t.customer===customer&&(pending(t)||(t.status==='FILLED'&&new Date(t.created).toISOString().slice(0,10)===day))).reduce((n,t)=>n+t.amount_usd,0);
+  const station=tickets.filter(t=>pending(t)||t.status==='FILLED').reduce((n,t)=>n+t.amount_usd,0);
+  return {today,station};
+}
+// Daily and station limits only; standing orders use this to reserve a whole rule's worth of fills up front.
+export function checkBudget(amount: number, customer: string, tickets=ledger.value) {
   const day=new Date().toISOString().slice(0,10);
   const reserved=tickets.filter(t=>pending(t)||(t.status==='FILLED'&&new Date(t.created).toISOString().slice(0,10)===day));
   if(reserved.filter(t=>t.customer===customer).reduce((n,t)=>n+t.amount_usd,0)+amount>env.MAX_DAILY_USD+1e-8) deny(`Your daily limit is ${env.MAX_DAILY_USD} dollars, including pending tickets.`);

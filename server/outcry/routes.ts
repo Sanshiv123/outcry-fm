@@ -4,17 +4,26 @@ import { readFileSync } from 'node:fs';
 import type { AppDeps } from '../app.ts';
 import { env } from '../env.ts';
 import { ApiError,parseJson,positiveDecimal } from '../http.ts';
-import { requireCustomer,type AppEnv } from '../session.ts';
+import { optionalCustomer,requireCustomer,type AppEnv } from '../session.ts';
 import { isAddressOn } from '../../shared/validation.ts';
-import { exclusive,expire,ledger,makeFloor,owned,publicTicket } from './policy.ts';
+import { exclusive,expire,ledger,makeFloor,owned,publicTicket,usage } from './policy.ts';
 import { wire } from './store.ts';
 import { getMarketStatus } from '../prices.ts';
 import { segment,speech,transcribe,interpretOrder } from './show.ts';
+import { bulletins,describe,makeStanding,parseStanding,publicRule,rules } from './standing.ts';
+import { makeCrowd,parseCall,voteReply } from './crowd.ts';
 const body=z.object({asset_id:z.string(),kind:z.enum(['buy','sell','tip']),amount:positiveDecimal});
 export function floorRoutes(deps:AppDeps){
   const floor=makeFloor(deps);const app=new Hono<AppEnv>();
-  app.get('/station',c=>c.json({simulated:env.MOCK_MODE,market_data:getMarketStatus(),segment,limits:{order:env.MAX_ORDER_USD,daily:env.MAX_DAILY_USD,station:env.MAX_STATION_USD},assets:deps.assets.tradeable().map(a=>({id:a.id,symbol:a.symbol,name:a.name,...deps.prices.get(a.symbol)})),board:ledger.value.filter(t=>t.status==='FILLED').slice(-30).reverse().map(t=>({id:t.id,name:t.name,kind:t.kind,symbol:t.symbol,amount_usd:t.amount_usd,created:t.created,order_id:t.upstream,simulated:t.simulated})),providers:{grok:process.env.ENABLE_GROK!=='false'&&!!process.env.XAI_API_KEY,elevenlabs:!!process.env.ELEVENLABS_API_KEY,agent:!!process.env.ELEVENLABS_API_KEY&&!!process.env.ELEVENLABS_AGENT_ID}}));
+  const standing=makeStanding(deps);standing.start();
+  const crowd=makeCrowd(deps);crowd.start();
+  app.get('/station',c=>c.json({simulated:env.MOCK_MODE,market_data:getMarketStatus(),segment,limits:{order:env.MAX_ORDER_USD,daily:env.MAX_DAILY_USD,station:env.MAX_STATION_USD},assets:deps.assets.tradeable().map(a=>({id:a.id,symbol:a.symbol,name:a.name,...deps.prices.get(a.symbol)})),board:ledger.value.filter(t=>t.status==='FILLED').slice(-30).reverse().map(t=>({id:t.id,name:t.name,kind:t.kind,symbol:t.symbol,amount_usd:t.amount_usd,created:t.created,order_id:t.upstream,simulated:t.simulated})),bulletins:bulletins.value.filter(b=>Date.now()-b.time<10*60_000).slice(0,10),standing_orders:env.STANDING_ORDERS,providers:{grok:process.env.ENABLE_GROK!=='false'&&!!process.env.XAI_API_KEY,elevenlabs:!!process.env.ELEVENLABS_API_KEY,agent:!!process.env.ELEVENLABS_API_KEY&&!!process.env.ELEVENLABS_AGENT_ID}}));
   app.get('/wire',requireCustomer,c=>c.json(wire.value));
+  app.get('/crowd',async c=>c.json(crowd.view((await optionalCustomer(c))?.id)));
+  app.post('/crowd/vote',requireCustomer,async c=>{const {side}=await parseJson(c,z.object({side:z.enum(['bull','bear'])}));crowd.vote(c.var.customer,side);return c.json(crowd.view(c.var.customer.id));});
+  app.get('/standing',requireCustomer,c=>c.json(rules.value.filter(r=>r.customer===c.var.customer.id).slice(-20).reverse().map(publicRule)));
+  app.post('/standing/:id/arm',requireCustomer,c=>c.json(publicRule(standing.arm(c.var.customer,c.req.param('id')))));
+  app.post('/standing/:id/cancel',requireCustomer,c=>c.json(standing.cancel(c.var.customer,c.req.param('id')).map(publicRule)));
   app.get('/audio/:file',c=>{const file=c.req.param('file');if(!/^\d+-\d+\.mp3$/.test(file))throw new ApiError(404,'not_found','Audio not found');try{return c.body(new Uint8Array(readFileSync(`data/audio/${file}`)),200,{'Content-Type':'audio/mpeg','Cache-Control':'public, max-age=3600'});}catch{throw new ApiError(404,'not_found','Audio unavailable');}});
   app.get('/tickets',requireCustomer,c=>{expire();return c.json(ledger.value.filter(t=>t.customer===c.var.customer.id).slice(-20).reverse().map(publicTicket));});
   app.post('/tickets',requireCustomer,async c=>{const r=await parseJson(c,body);const a=deps.assets.byId(r.asset_id);const to=r.kind==='tip'?(env.MOCK_MODE?'SIMULATED-STATION':process.env[a?.chain==='solana'?'STATION_WALLET_SOLANA':'STATION_WALLET_EVM']):undefined;return c.json(publicTicket(await floor.draft(c.var.customer,{...r,to})));});
@@ -42,6 +51,27 @@ export function floorRoutes(deps:AppDeps){
       if(!ticket_id)throw new ApiError(400,'invalid_argument','There is no reviewed ticket to confirm.');
       const t=await floor.confirm(c.var.customer,ticket_id);return c.json({reply:t.status==='FILLED'?`Confirmed. Your ${t.simulated?'simulated ':''}${t.kind} is complete.`:'Your ticket is being checked. Please do not place it again.',ticket:publicTicket(t)});
     }
+    // Standing orders and price alerts: parsed by a fixed grammar, armed only by an explicit "arm it".
+    const pendingRule=rules.value.filter(r=>r.customer===c.var.customer.id&&r.status==='PENDING_AUTHORIZATION').at(-1);
+    if(['arm','arm it','arm the order','authorize','authorize it'].includes(normalized)||(normalized==='confirm'&&!ticket_id&&pendingRule)){
+      const r=standing.arm(c.var.customer);return c.json({reply:`Armed. ${describe(r)} I will call every fill on air. Say cancel my standing orders to stop it.`,rule:publicRule(r)});
+    }
+    if(['cancel','scratch that'].includes(normalized)&&!ticket_id&&pendingRule){standing.cancel(c.var.customer,pendingRule.id);return c.json({reply:'Scratched. That standing order was never armed.'});}
+    if(/^(?:cancel|stop|kill|clear)(?: all)?(?: of)?(?: my)? (?:standing orders?|auto ?orders?|rules|alerts|price alerts)$/.test(normalized)){
+      const hit=standing.cancel(c.var.customer);return c.json({reply:hit.length?`Done. ${hit.length} standing ${hit.length===1?'order is':'orders are'} canceled. Nothing further will fill.`:'You have no standing orders or alerts running.'});
+    }
+    if(/^(?:what are |list |read )?(?:my )?(?:standing orders|rules|alerts|price alerts)$/.test(normalized)){
+      const mine=rules.value.filter(r=>r.customer===c.var.customer.id&&r.status==='ACTIVE');
+      return c.json({reply:mine.length?mine.map((r,i)=>`${i+1}. ${describe(r)}${r.kind!=='alert'?` ${r.fills} of ${r.max_fills} filled.`:''}`).join(' '):'No standing orders or alerts are running.'});
+    }
+    if(/^(?:what (?:are|is) )?(?:my )?(?:limits?|caps?|spending limits?|budget)$|^how much (?:can i|do i have left to) (?:spend|trade)/.test(normalized)){
+      const u=usage(c.var.customer.id),left=Math.max(0,env.MAX_DAILY_USD-u.today);
+      return c.json({reply:`Your limits: up to ${env.MAX_ORDER_USD} dollars per order and ${env.MAX_DAILY_USD} dollars a day, counting pending tickets. You have used ${u.today.toFixed(2)} today, so ${left.toFixed(2)} dollars left. The station budget is ${env.MAX_STATION_USD} dollars, with ${Math.max(0,env.MAX_STATION_USD-u.station).toFixed(2)} remaining. These are enforced in code, not by me.`});
+    }
+    const crowdCall=parseCall(normalized);
+    if(crowdCall){const r=crowd.vote(c.var.customer,crowdCall.side,crowdCall.symbol);return c.json({reply:voteReply(r,crowdCall.side)});}
+    const standingIntent=parseStanding(normalized,deps.assets.tradeable());
+    if(standingIntent){const {rule,reply}=standing.propose(c.var.customer,standingIntent);return c.json({reply,rule:publicRule(rule)});}
     if(['cancel','scratch that'].includes(normalized)&&ticket_id){return exclusive(async()=>{const t=owned(ticket_id,c.var.customer.id);if(t.status==='AWAITING_CONFIRMATION'){t.status='CANCELED';delete t.payloads;ledger.save();}return c.json({reply:'Your ticket status is '+t.status.toLowerCase()+'.'});});}
     const match=normalized.match(/^(buy|sell|tip)\s+\$?(\d+(?:\.\d{1,2})?)\s*(?:dollars?\s*)?(?:of\s+)?([a-z]+)$/);
     if(!match){
@@ -54,9 +84,12 @@ export function floorRoutes(deps:AppDeps){
       }
       return c.json({reply:`Hello ${c.var.customer.first_name||'Listener'}. Please specify an action, dollar amount and asset. For example, buy one dollar of Solana, or type buy 1 SOL. I will read the exact ticket back before you confirm.`});
     }
-    const symbol=match[3]!.toUpperCase();const a=deps.assets.tradeable().find(a=>a.symbol===symbol||a.name.toUpperCase()===symbol||(symbol==='BTC'&&a.symbol==='CBBTC'));
+    const symbol=match[3]!.toUpperCase();const kind=match[1] as 'buy'|'sell'|'tip';
+    // Tips may name a tip-only cash asset (e.g. a stablecoin the station actually holds); buy/sell stay restricted to the tradeable allowlist.
+    const pool=kind==='tip'?deps.assets.all():deps.assets.tradeable();
+    const a=pool.find(a=>a.symbol===symbol||a.name.toUpperCase()===symbol||(symbol==='BTC'&&a.symbol==='CBBTC'));
     if(!a)throw new ApiError(422,'policy_blocked','That asset is not on the verified allowlist.');
-    const kind=match[1] as 'buy'|'sell'|'tip';const to=kind==='tip'?(env.MOCK_MODE?'SIMULATED-STATION':process.env[a.chain==='solana'?'STATION_WALLET_SOLANA':'STATION_WALLET_EVM']):undefined;
+    const to=kind==='tip'?(env.MOCK_MODE?'SIMULATED-STATION':process.env[a.chain==='solana'?'STATION_WALLET_SOLANA':'STATION_WALLET_EVM']):undefined;
     const t=await floor.draft(c.var.customer,{asset_id:a.id,kind,amount:match[2]!,to});
     return c.json({reply:`${t.simulated?'Simulated ticket. ':''}${kind} ${Number(match[2]).toFixed(2)} dollars of ${a.symbol}. Quoted fee ${t.fee} ${t.fee_asset}. Ticket ${t.id.slice(0,6)}. Say confirm within thirty seconds, or scratch that.`,ticket:publicTicket(t)});
   });
