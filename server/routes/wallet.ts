@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import type { AppDeps } from "../app.ts";
 import { gatewayUserId, requireCustomer, type AppEnv } from "../session.ts";
 import { TMError } from "../tm/errors.ts";
@@ -7,7 +7,7 @@ import { getSoleOrganizationUser } from "../tm/organization.ts";
 
 export function walletRoutes({ gateway, assets, prices }: AppDeps) {
   const app = new Hono<AppEnv>();
-  app.get("/connected-wallet", ...(env.TM_PUBLIC_WALLET_VIEW ? [] : [requireCustomer]), async (c) => {
+  const readConnectedWallet = async (c: Context<AppEnv>) => {
     const linked = env.TM_PUBLIC_WALLET_VIEW ? await getSoleOrganizationUser() : undefined;
     const customer = env.TM_PUBLIC_WALLET_VIEW ? undefined : c.var.customer;
     const userId = linked?.user_id ?? (customer ? gatewayUserId(customer) : "");
@@ -33,7 +33,9 @@ export function walletRoutes({ gateway, assets, prices }: AppDeps) {
         .slice(0, 20)
         .map(({ id, type, asset_flow, status, created_at, qty, asset_symbol }) => ({ id, type, asset_flow, status, created_at, qty, asset_symbol })),
     });
-  });
+  };
+  if (env.TM_PUBLIC_WALLET_VIEW) app.get("/connected-wallet", readConnectedWallet);
+  else app.get("/connected-wallet", requireCustomer, readConnectedWallet);
   return app
     .get("/portfolio", requireCustomer, async (c) => {
       const userId = gatewayUserId(c.var.customer);
