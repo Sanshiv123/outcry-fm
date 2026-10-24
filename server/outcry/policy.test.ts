@@ -1,0 +1,27 @@
+import { beforeEach,afterEach,describe,it,expect,vi } from 'vitest';
+import { makeFloor,ledger,checkCaps, type Ticket } from './policy.ts';
+import { createApp } from '../app.ts';
+import { mockGateway } from './mock.ts';
+import type { AppDeps } from '../app.ts';
+import type { Customer } from '../customers.ts';
+const user:Customer={id:'policy-user',first_name:'Alex',email:'alex@example.com',password:{salt:'',hash:''},external_ref_id:'test',user_id:'policy-wallet',wallets:[],created_at:new Date().toISOString()};
+let deps:AppDeps;
+beforeEach(async()=>{ledger.value=[];ledger.save();const all=(await mockGateway.listAssets()).data;deps={gateway:{...mockGateway},assets:{byId:id=>all.find(a=>a.id===id),all:()=>all,tradeable:()=>all.filter(a=>!a.stable),isCash:a=>a.stable,symbolOf:id=>all.find(a=>a.id===id)?.symbol||id},prices:{get:s=>({price:s==='SOL'?'182.46':s==='CBBTC'?'67432.8':'1',as_of:new Date().toISOString(),change_24h:'0.02'})}};});
+afterEach(()=>vi.useRealTimers());
+const request={kind:'buy' as const,asset_id:'sim-SOL-solana',amount:'1'};
+describe('OUTCRY floor policy',()=>{
+ it('blocks oversized orders before any Gateway call',async()=>{const spy=vi.spyOn(deps.gateway,'createOrder');await expect(makeFloor(deps).draft(user,{...request,amount:'500'})).rejects.toThrow('over 5');expect(spy).not.toHaveBeenCalled();});
+ it('fails closed on missing or stale prices',async()=>{deps.prices.get=()=>({price:'182',as_of:'invalid',change_24h:null});await expect(makeFloor(deps).draft(user,request)).rejects.toThrow('Fresh price');});
+ it('fails closed on missing balances',async()=>{deps.gateway.balances=async()=>({data:[]});await expect(makeFloor(deps).draft(user,request)).rejects.toThrow('balance');});
+ it('rejects nonfinite and nonpositive policy amounts',()=>{for(const n of [NaN,Infinity,-1,0])expect(()=>checkCaps(n,user.id)).toThrow();});
+ it('executes only once for concurrent duplicate confirmations',async()=>{const f=makeFloor(deps),t=await f.draft(user,request);const spy=vi.spyOn(deps.gateway,'executeOrder');const results=await Promise.all([f.confirm(user,t.id),f.confirm(user,t.id)]);expect(results.every(t=>t.status==='FILLED')).toBe(true);expect(spy).toHaveBeenCalledTimes(1);});
+ it('requires a fresh review after thirty seconds; never re-quotes during confirmation',async()=>{const f=makeFloor(deps),t=await f.draft(user,request);const create=vi.spyOn(deps.gateway,'createOrder'),execute=vi.spyOn(deps.gateway,'executeOrder');t.expires=Date.now()-1;await expect(f.confirm(user,t.id)).rejects.toThrow('expired');expect(create).not.toHaveBeenCalled();expect(execute).not.toHaveBeenCalled();});
+ it('invalidates the old ticket when amount changes',async()=>{const f=makeFloor(deps),old=await f.draft(user,request);await f.draft(user,{...request,amount:'2'});await expect(f.confirm(user,old.id)).rejects.toThrow('canceled');});
+ it('binds tickets to their owner',async()=>{const f=makeFloor(deps),t=await f.draft(user,request);await expect(f.confirm({...user,id:'attacker'},t.id)).rejects.toThrow('not found');});
+ it('retains UNKNOWN reservations and queries instead of resubmitting',async()=>{const f=makeFloor(deps),t=await f.draft(user,request);const execute=vi.spyOn(deps.gateway,'executeOrder').mockRejectedValue(Error('timeout'));const status=vi.spyOn(deps.gateway,'getOrder').mockRejectedValue(Error('timeout'));expect((await f.confirm(user,t.id)).status).toBe('UNKNOWN');expect((await f.confirm(user,t.id)).status).toBe('UNKNOWN');expect(execute).toHaveBeenCalledTimes(1);expect(status).toHaveBeenCalledTimes(2);});
+ it('counts filled and pending orders towards daily limits',()=>{const ticket={customer:user.id,amount_usd:5,status:'FILLED',created:Date.now()} as Ticket;expect(()=>checkCaps(1,user.id,[ticket,ticket,ticket,{...ticket,status:'UNKNOWN'}])).toThrow('daily limit');});
+ it('counts other users against the station-wide cap',()=>{const t={customer:'other',amount_usd:5,status:'FILLED',created:Date.now()} as Ticket;expect(()=>checkCaps(1,user.id,Array(10).fill(t))).toThrow('station');});
+ it('enforces ownership on legacy order reads too',async()=>{const app=createApp(deps);const r=await app.request('/api/orders/anything');expect(r.status).toBe(401);});
+ it('requires the literal human confirmation flag on the ticket endpoint',async()=>{const app=createApp(deps);const signup=await app.request('/api/signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:`a${Date.now()}@example.com`,password:'testpassword',first_name:'Alex'})});const cookie=signup.headers.get('set-cookie')!.split(';')[0]!;const r=await app.request('/api/tickets/anything/confirm',{method:'POST',headers:{Cookie:cookie,'Content-Type':'application/json'},body:'{"confirm":false}'});expect(r.status).toBe(400);});
+ it('blocks cross-origin mutations',async()=>{const r=await createApp(deps).request('http://localhost/api/signup',{method:'POST',headers:{Host:'localhost',Origin:'https://other.example','Content-Type':'application/json'},body:'{}'});expect(r.status).toBe(403);});
+});

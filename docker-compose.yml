@@ -1,0 +1,12 @@
+services:
+  outcry:
+    build: .
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "4747:4747"
+    volumes:
+      - ./data:/app/data
+      - ./.secrets:/app/.secrets:ro
+      - ./keys:/app/keys:ro

@@ -1,0 +1,13 @@
+{
+  "key_id": "8a4f1e2b-6c3d-4e5f-8a9b-0c1d2e3f4a5b",
+  "label": "test",
+  "fingerprint": "test",
+  "created_at": "2026-09-24T00:00:00Z",
+  "private_key": {
+    "kty": "EC",
+    "crv": "P-256",
+    "x": "AhfmF_C2RDkoJ4-WmZ5pojpPLBUr321s32bluAKC1O0",
+    "y": "GUp968uXcS0t2jyoWqh2Wlb0X8dYWZZS8ol8ZTBuV5Q",
+    "d": "ERERERERERERERERERERERERERERERERERERERERERE"
+  }
+}
