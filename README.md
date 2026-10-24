@@ -68,6 +68,10 @@ public repository yet. No commits or pushes have been made.
    that existing wallet rather than creating another one. The app refuses this
    mode if the organization has zero or multiple users or the wallet is already
    linked to another local account.
+   For a local, read-only wallet page without signing in, set
+   `TM_PUBLIC_WALLET_VIEW=true`. This requires live mode and existing-user
+   linking, and binds the server to `127.0.0.1`; it does not expose wallet
+   addresses or allow trades from that page.
 4. Fund the address shown by `/add-funds` with a small amount on its matching
    chain. No automated funding, Discord posting, or real-money test order is run.
 5. ElevenLabs keys, two voice IDs and a private agent are configured locally. Grok

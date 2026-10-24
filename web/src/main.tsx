@@ -14,6 +14,7 @@ import { SignUp } from "./pages/SignUp.tsx";
 import { Trade } from "./pages/Trade.tsx";
 import { Rules } from "./pages/Rules.tsx";
 import { Charts } from "./pages/Charts.tsx";
+import { ConnectedWallet } from "./pages/ConnectedWallet.tsx";
 import "./styles.css";
 
 const queryClient = new QueryClient({
@@ -32,6 +33,7 @@ createRoot(document.getElementById("root")!).render(
       <BrowserRouter>
         <Routes>
           <Route index element={<Station />} />
+          <Route path="/connected-wallet" element={<ConnectedWallet />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/login" element={<SignIn />} />
           <Route element={<AppShell />}>

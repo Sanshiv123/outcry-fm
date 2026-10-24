@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Activity, ArrowLeftRight, House, LogOut, Plus, Send, Target, TrendingUp, type LucideIcon } from "lucide-react";
+import { Activity, ArrowLeftRight, House, LogOut, Plus, Send, Target, TrendingUp, Wallet, type LucideIcon } from "lucide-react";
 import type { FormEvent, ReactNode } from "react";
 import { Navigate, NavLink, Outlet, useNavigate } from "react-router";
 import { api, ApiError, useMe } from "../api.ts";
@@ -14,6 +14,7 @@ const NAV: { to: string; label: string; icon: LucideIcon }[] = [
   { to: "/add-funds", label: "Add funds", icon: Plus },
   { to: "/send", label: "Send", icon: Send },
   { to: "/activity", label: "Activity", icon: Activity },
+  { to: "/connected-wallet", label: "Connected wallet", icon: Wallet },
 ];
 
 function CustomerCard({ email }: { email: string }) {

@@ -16,4 +16,4 @@ startPricePoller([...new Set(assets.all().map(a => a.symbol))], 15000, gateway.p
 startMarketStream([...new Set([...assets.tradeable(), ...(assets.market?.() ?? [])].map(a => a.symbol))]);
 const deps = { gateway, assets, prices };
 startShow(deps);
-serve({ fetch: createApp(deps).fetch, port: env.PORT }, info => console.log(`OUTCRY.FM http://localhost:${info.port} · ${env.MOCK_MODE ? "SIMULATED" : "REAL FUNDS"}`));
+serve({ fetch: createApp(deps).fetch, port: env.PORT, ...(env.TM_PUBLIC_WALLET_VIEW ? { hostname: "127.0.0.1" } : {}) }, info => console.log(`OUTCRY.FM http://localhost:${info.port} · ${env.MOCK_MODE ? "SIMULATED" : "REAL FUNDS"}`));
