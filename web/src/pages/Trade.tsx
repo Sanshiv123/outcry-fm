@@ -146,7 +146,7 @@ function Ticket({
           {!buy && <span className="text-2xl text-muted">{token.symbol}</span>}
         </span>
         <span className="text-sm text-muted">
-          {available === undefined ? "—" : buy ? `${usd(available)} cash available` : `${tokenAmount(available, token.symbol)} available`}
+          {available === undefined ? "—" : buy ? `${usd(available)} USDC available` : `${tokenAmount(available, token.symbol)} available`}
         </span>
       </label>
 
@@ -241,7 +241,8 @@ export function Trade() {
   const token = tokens.find((t) => t.asset_id === params.get("asset")) ?? tokens[0];
   const rows = holdings(portfolio.data, assets.data);
   const position = rows.find((h) => h.symbol === token?.symbol && h.chain === token.chain);
-  const cash = rows.find((h) => h.cash && h.chain === token?.chain);
+  const cash = rows.find((h) => h.symbol === "USDC" && h.chain === token?.chain);
+  const otherStable = rows.find((h) => h.cash && Number(h.available) > 0 && (h.symbol !== "USDC" || h.chain !== token?.chain));
 
   function select(next: { asset?: string; side?: Side }) {
     setParams({ asset: next.asset ?? token?.asset_id ?? "", side: next.side ?? side }, { replace: true });
@@ -250,6 +251,9 @@ export function Trade() {
   return (
     <Page title="Trade" subtitle="Buy and sell tokens with your cash balance.">
       {assets.error && <Banner tone="error">{assets.error.message}</Banner>}
+      {side === "buy" && token && otherStable && <Banner title="Your balance uses a different stablecoin">
+        You have {usd(otherStable.available)} in {otherStable.symbol} on {chainName(otherStable.chain)}. A {token.symbol} buy on {chainName(token.chain)} requires USDC on that network; this balance can’t fund the order directly.
+      </Banner>}
       {!token ? (
         <Spinner />
       ) : (
@@ -272,7 +276,7 @@ export function Trade() {
               detail={usd(position?.value ?? (position ? null : 0))}
             />
             <div className="flex flex-col gap-1">
-              <Label>Cash available</Label>
+              <Label>USDC available</Label>
               <Mono className="text-[22px]">{usd(cash?.available ?? 0)}</Mono>
             </div>
             <p className="m-0 mt-6 text-[13px] leading-relaxed text-faint">

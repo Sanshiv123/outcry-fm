@@ -107,7 +107,7 @@ export function holdings(portfolio: Portfolio | undefined, assets: AssetRow[] | 
       total: row.total,
       available: row.available,
       chain: row.chain,
-      cash: asset?.cash ?? false,
+      cash: row.stable || asset?.cash || false,
       price,
       value: toRatio(row.value) ?? (price === null ? null : Number(row.total) * price),
       change: row.stable ? null : (toRatio(row.change_24h_pct, 100) ?? toRatio(asset?.change_24h)),

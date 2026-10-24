@@ -37,8 +37,8 @@ export function makeFloor(deps:AppDeps) {
     const reserved=ledger.value.filter(x=>x.id!==t.id&&x.customer===t.customer&&pending(x)&&((t.kind==='buy'&&x.kind==='buy'&&assets.byId(x.asset_id)?.chain===a.chain)||(t.kind!=='buy'&&x.kind!=='buy'&&x.asset_id===a.id))).reduce((n,x)=>n+Number(x.qty),0);
     const required=Number(t.qty)+(t.kind==='tip'||t.kind==='send'?Number(t.fee):0);
     if(!b||!Number.isFinite(available)||available-reserved+1e-10<required) {
-      const alternative=t.kind==='buy'&&paying?data.find(x=>x.stable&&x.chain===a.chain&&x.symbol!==paying.symbol&&Number(x.available)>0):undefined;
-      if(alternative&&paying) deny(`Your wallet has ${alternative.available} ${alternative.symbol} on ${a.chain}, but this Gateway buy requires ${paying.symbol} on ${a.chain}. Add ${paying.symbol} to continue.`);
+      const alternative=t.kind==='buy'&&paying?data.find(x=>x.stable&&Number(x.available)>0&&(x.symbol!==paying.symbol||x.chain!==paying.chain)):undefined;
+      if(alternative&&paying) deny(`Your wallet has ${alternative.available} ${alternative.symbol} on ${alternative.chain}, but this Gateway buy requires ${paying.symbol} on ${paying.chain}. Fund the required asset to continue.`);
       deny('Available balance is missing or insufficient, including pending tickets.');
     }
   }
