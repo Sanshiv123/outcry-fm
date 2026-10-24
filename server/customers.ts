@@ -61,6 +61,10 @@ export function findById(id: string): Customer | undefined {
   return store.customers.find((c) => c.id === id);
 }
 
+export function findByGatewayUserId(userId: string): Customer | undefined {
+  return store.customers.find((c) => c.user_id === userId);
+}
+
 export function createCustomer(email: string, password: string, firstName?: string): Customer {
   if (findByEmail(email)) throw new EmailTaken();
 

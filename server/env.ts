@@ -9,6 +9,7 @@ const schema = z.object({
   MAX_DAILY_USD: z.coerce.number().positive().max(20).default(20),
   MAX_STATION_USD: z.coerce.number().positive().max(50).default(50),
   TM_API_KEY_PATH: z.string().default(".secrets"),
+  TM_LINK_EXISTING_USER: z.enum(["true", "false"]).default("false").transform(v => v === "true"),
   TM_TOKENS: z
     .string()
     .default(
@@ -37,6 +38,9 @@ function parseEnv(): Env {
     throw new Error(`invalid environment:\n  ${problems.join("\n  ")}`);
   }
   if (!process.env.DATA_FILE) parsed.data.DATA_FILE = `data/${parsed.data.MOCK_MODE ? "mock" : "live"}/customers.json`;
+  if (parsed.data.TM_LINK_EXISTING_USER && parsed.data.MOCK_MODE) {
+    throw new Error("TM_LINK_EXISTING_USER requires MOCK_MODE=false");
+  }
   return parsed.data;
 }
 

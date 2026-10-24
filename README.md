@@ -63,6 +63,11 @@ public repository yet. No commits or pushes have been made.
    balances are separate. Resolve `TM_TOKENS` against the actual Gateway catalog.
    Defaults are SOL on Solana and CBBTC on Base; tokenized stocks can be added
    only after their symbols/chains and availability are verified.
+   If True Markets has already provisioned exactly one Gateway user for this
+   organization, `TM_LINK_EXISTING_USER=true` links the first local signup to
+   that existing wallet rather than creating another one. The app refuses this
+   mode if the organization has zero or multiple users or the wallet is already
+   linked to another local account.
 4. Fund the address shown by `/add-funds` with a small amount on its matching
    chain. No automated funding, Discord posting, or real-money test order is run.
 5. ElevenLabs keys, two voice IDs and a private agent are configured locally. Grok
