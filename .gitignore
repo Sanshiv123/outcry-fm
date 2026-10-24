@@ -1,0 +1,10 @@
+.env
+secrets/
+*.json.key
+truemarkets-api-key*.json
+__pycache__/
+.pytest_cache/
+.venv/
+node_modules/
+media/
+.DS_Store
