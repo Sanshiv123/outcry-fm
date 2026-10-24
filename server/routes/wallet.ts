@@ -3,16 +3,15 @@ import type { AppDeps } from "../app.ts";
 import { gatewayUserId, requireCustomer, type AppEnv } from "../session.ts";
 import { TMError } from "../tm/errors.ts";
 import { env } from "../env.ts";
-import { getSoleOrganizationUser } from "../tm/organization.ts";
+import { findOnlyLinkedCustomer } from "../customers.ts";
 
 export function walletRoutes({ gateway, assets, prices }: AppDeps) {
   const app = new Hono<AppEnv>();
   const readConnectedWallet = async (c: Context<AppEnv>) => {
-    const linked = env.TM_PUBLIC_WALLET_VIEW ? await getSoleOrganizationUser() : undefined;
-    const customer = env.TM_PUBLIC_WALLET_VIEW ? undefined : c.var.customer;
-    const userId = linked?.user_id ?? (customer ? gatewayUserId(customer) : "");
+    const customer = env.TM_PUBLIC_WALLET_VIEW ? findOnlyLinkedCustomer() : c.var.customer;
+    const userId = customer ? gatewayUserId(customer) : "";
     if (!userId) return c.json({ type: "unavailable", message: "No linked Gateway wallet is configured" }, 503);
-    const wallets = linked?.wallets ?? customer?.wallets ?? [];
+    const wallets = customer?.wallets ?? [];
     const [balances, portfolio, transactions] = await Promise.all([
       gateway.balances(userId),
       gateway.portfolio(userId).catch(async (err: unknown) => {

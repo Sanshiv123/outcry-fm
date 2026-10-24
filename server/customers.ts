@@ -65,6 +65,11 @@ export function findByGatewayUserId(userId: string): Customer | undefined {
   return store.customers.find((c) => c.user_id === userId);
 }
 
+export function findOnlyLinkedCustomer(): Customer | undefined {
+  const linked = store.customers.filter((customer) => customer.user_id !== null);
+  return linked.length === 1 ? linked[0] : undefined;
+}
+
 export function createCustomer(email: string, password: string, firstName?: string): Customer {
   if (findByEmail(email)) throw new EmailTaken();
 
