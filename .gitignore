@@ -14,3 +14,7 @@ specs/
 *.key
 .DS_Store
 keys/
+
+# local secrets (never commit)
+secrets/
+*.hex
