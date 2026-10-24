@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import { Radio, Headphones, Mic, ArrowUpRight, Play, Pause, X, Wallet, Activity, ShieldCheck, AudioLines, Plus, Send, Volume2 } from 'lucide-react';
-import { api,useMe,usePortfolio } from '../api.ts';
+import { api,useMe } from '../api.ts';
 import './station.css';
 import { LiveCall } from '../components/LiveCall.tsx';
 type Asset={id:string;symbol:string;name:string;price:string|null;change_24h:string|null};
@@ -11,7 +11,7 @@ type Segment={bell?:string;id:string;started_at:number;duration:number;source:st
 type StationData={simulated:boolean;market_data:{mode:string;source:string;connected:boolean;updated_at:string|null};segment:Segment;assets:Asset[];limits:{order:number;daily:number};board:{id:string;name:string;kind:string;symbol:string;amount_usd:number;created:number;order_id:string;simulated:boolean}[];providers:{grok:boolean;elevenlabs:boolean;agent:boolean}};
 const money=(n:number|string|null|undefined)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(n||0));
 export function Station(){
-  const qc=useQueryClient(),me=useMe(),portfolio=usePortfolio();
+  const qc=useQueryClient(),me=useMe();
   const station=useQuery({queryKey:['station'],queryFn:()=>api<StationData>('/api/station'),refetchInterval:2500});
   const data=station.data;
   const [modal,setModal]=useState<'auth'|'ticket'|'call'|'wire'|null>(null),[login,setLogin]=useState(false),[error,setError]=useState(''),[busy,setBusy]=useState(false),[ticket,setTicket]=useState<Ticket|null>(null),[playing,setPlaying]=useState(false),[line,setLine]=useState(0),[tab,setTab]=useState<'board'|'transcript'>('board'),[now,setNow]=useState(Date.now()),[reply,setReply]=useState('Welcome to the floor. Try “buy 1 SOL”. I’ll read your ticket back before you confirm.'),[callText,setCallText]=useState(''),[recording,setRecording]=useState(false);
