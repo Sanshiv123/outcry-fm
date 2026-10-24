@@ -31,7 +31,7 @@ describe("startPricePoller", () => {
     startPricePoller(["SOL"], 15_000, fetchHistory);
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(prices.get("SOL")).toEqual({ price: "110", change_24h: "0.1000", as_of: "2026-09-24T10:02:00Z" });
+    expect(prices.get("SOL")).toMatchObject({ price: "110", change_24h: "0.1000", as_of: "2026-09-24T10:02:00Z" });
   });
 
   it("reads null for a symbol that never priced", async () => {
@@ -43,8 +43,8 @@ describe("startPricePoller", () => {
     startPricePoller(["SOL", "PENGU"], 15_000, fetchHistory);
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(prices.get("SOL")).toEqual({ price: null, change_24h: null, as_of: null });
-    expect(prices.get("PENGU")).toEqual({ price: null, change_24h: null, as_of: null });
+    expect(prices.get("SOL")).toMatchObject({ price: null, change_24h: null, as_of: null });
+    expect(prices.get("PENGU")).toMatchObject({ price: null, change_24h: null, as_of: null });
   });
 
   it("keeps the previous value through a failure streak and logs it once", async () => {

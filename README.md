@@ -45,11 +45,17 @@ release for ongoing development. The initial build was checked with that runtime
 **Verification status:** local simulation, type checking, production build and
 HTTP signup → buy → confirmation → tip flow verified. ElevenLabs host intros and pit bell have now been generated; a private Gemini-powered
 agent was created and its signed-session access verified. A microphone call has
-not yet been rehearsed. True Markets authentication and real station receiving-wallet creation succeeded;
-no real funding or trades were performed. Real trading remains unverified. Grok is disabled
-with `ENABLE_GROK=false`; the station uses scripted market commentary.
+not yet been rehearsed. Grok writes the show and parses free-form call-ins when `XAI_API_KEY` is set (`ENABLE_GROK=true` by default). True Markets authentication and real station receiving-wallet creation succeeded;
+no real funding or trades were performed. Real trading remains unverified.
 The app does not claim real fills, track eligibility, a live deployment, or a
 public repository yet. No commits or pushes have been made.
+
+## Design
+
+The interface borrows from the Chicago trading pit: cobalt trader-jacket blue, yellow pit
+badges, and order tickets with perforated edges. The logo is a raised open palm, the pit
+hand signal to trade, with broadcast waves. Type is Big Shoulders Display, drawn for Chicago.
+The station screen (`/?station=1`) shows the live caption, prices, the board and a QR code.
 
 ## Real integrations
 
@@ -65,8 +71,8 @@ public repository yet. No commits or pushes have been made.
    only after their symbols/chains and availability are verified.
 4. Fund the address shown by `/add-funds` with a small amount on its matching
    chain. No automated funding, Discord posting, or real-money test order is run.
-5. ElevenLabs keys, two voice IDs and a private agent are configured locally. Grok
-   is intentionally disabled; no xAI key is needed for this configuration. See
+5. Set `XAI_API_KEY` (console.x.ai) for Grok show scripts and call-in parsing,
+   plus ElevenLabs keys and two voice IDs. See
    [ElevenLabs setup](docs/ELEVENLABS.md) for the optional conversational agent.
 6. The station receiving wallets are now created, and `STATION_WALLET_SOLANA` /
    `STATION_WALLET_EVM` are set in the local `.env`. Tip tickets

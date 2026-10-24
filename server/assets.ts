@@ -2,7 +2,8 @@ import { env } from "./env.ts";
 import { listAssets } from "./tm/gateway.ts";
 import type { AssetItem } from "./tm/types.ts";
 
-const CASH_SYMBOL = "USDC";
+// Stablecoin used as cash for buys. True Markets funded the demo wallet in PYUSD on Solana.
+const CASH_SYMBOL = (process.env.CASH_SYMBOL || "USDC").trim().toUpperCase();
 
 interface Catalog {
   tradeable: AssetItem[];

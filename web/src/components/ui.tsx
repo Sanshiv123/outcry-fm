@@ -191,14 +191,34 @@ export function TxGlyph({ glyph, color }: { glyph: string; color: string }) {
   );
 }
 
+/** The OUTCRY mark: a raised open palm (the pit hand signal to trade) with broadcast waves. */
+export function PalmMark({ size = 40, mono = false }: { size?: number; mono?: boolean }) {
+  const hand = mono ? "currentColor" : "#ffd21f";
+  const waves = mono ? "currentColor" : "#ffffff";
+  return (
+    <svg viewBox="0 0 64 64" width={size} height={size} aria-hidden style={{ flex: "none" }}>
+      <g fill={hand}>
+        <rect x="12" y="27" width="25" height="26" rx="7" />
+        <rect x="12" y="12" width="5.5" height="22" rx="2.75" />
+        <rect x="19.2" y="8" width="5.5" height="25" rx="2.75" />
+        <rect x="26.4" y="9" width="5.5" height="24" rx="2.75" />
+        <rect x="33.4" y="14" width="5" height="20" rx="2.5" />
+        <rect x="34" y="34" width="12" height="6" rx="3" transform="rotate(-32 34 34)" />
+      </g>
+      <path d="M45 21a15 15 0 0 1 0 21M51 15a23 23 0 0 1 0 33" stroke={waves} strokeWidth="3.6" fill="none" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function Logo() {
   return (
-    <div className="flex items-center gap-2.5">
-      <div className="flex size-[34px] items-center justify-center rounded-[10px] bg-accent font-display text-sm font-bold text-ink">
-        O
-      </div>
-      <span className="font-display text-[19px] font-bold">OUTCRY.FM</span>
-    </div>
+    <a href="/" className="flex items-center gap-2.5 no-underline" style={{ color: "#fff" }}>
+      <PalmMark size={34} />
+      <span style={{ font: "900 26px/1 var(--font-display)", letterSpacing: ".5px" }}>
+        OUTCRY
+        <span style={{ display: "inline-block", background: "#ffd21f", color: "#0f1640", fontSize: 13, padding: "3px 4px 2px", borderRadius: 3, marginLeft: 3, verticalAlign: 5, transform: "rotate(-4deg)" }}>.FM</span>
+      </span>
+    </a>
   );
 }
 
